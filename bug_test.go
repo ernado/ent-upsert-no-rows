@@ -2,7 +2,10 @@ package bug
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -30,7 +33,12 @@ func TestBugPostrgres(t *testing.T) {
 func test(t *testing.T, client *ent.Client) {
 	ctx := context.Background()
 
-	const id = "id"
+	idBytes := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, idBytes); err != nil {
+		t.Fatal(err)
+	}
+
+	id := hex.EncodeToString(idBytes)
 	client.User.Create().
 		SetID(id).
 		ExecX(ctx)
@@ -44,9 +52,8 @@ func test(t *testing.T, client *ent.Client) {
 		SetID(id).
 		OnConflict(
 			sql.ConflictColumns(user.FieldID),
-			sql.DoNothing(),
-		).Ignore().Exec(ctx); err != nil {
-		// sql: no rows in result set
+			sql.ResolveWithIgnore(),
+		).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 
